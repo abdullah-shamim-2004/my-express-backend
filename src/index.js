@@ -1,48 +1,45 @@
-const express = require("express");
-const app = express();
-const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const startNewsCron = require("./cron/newsCron");
+const adminRoutes = require("./routes/adminRoutes");
+const newsRoutes = require("./routes/newsRoutes");
+
+const app = express();
 const port = process.env.PORT || 3000;
-// middleware
+
+// ১. Middleware
 app.use(express.json());
 app.use(cors());
-// Mongodb uri
+
+// ২. MongoDB Connection (Mongoose)
 const uri = process.env.MONGO_URI;
 
-// Mongodb connection
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    console.log("✅ MongoDB Connected");
-    const db = client.db("task-manager");
-    // const taskCollection = db.collection("tasks");
+mongoose
+  .connect(uri)
+  .then(() => {
+    console.log("✅ MongoDB Connected via Mongoose");
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
-}
-run().catch(console.dir);
+    // ৩. after srver connect cron job start
+    startNewsCron();
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+  });
 
+// ৪. Routes
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("News Aggregator Server is Running...");
 });
 
+// admin role for manually refresh data
+app.use("/api/admin", adminRoutes);
+
+// main news route for front-end call 
+app.use("/api", newsRoutes);
+
+// ৫. Server Listen
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`🚀 Server listening on port ${port}`);
 });
